@@ -80,6 +80,24 @@ static const basic::FileInfo convertFileInfo(const llb_build_value_file_info_t &
       fileInfo.modTime.seconds,
       fileInfo.modTime.nanoseconds,
     },
+    basic::FileChecksum {
+      fileInfo.checksum.bytes[0],
+      fileInfo.checksum.bytes[1],
+      fileInfo.checksum.bytes[2],
+      fileInfo.checksum.bytes[3],
+      fileInfo.checksum.bytes[4],
+      fileInfo.checksum.bytes[5],
+      fileInfo.checksum.bytes[6],
+      fileInfo.checksum.bytes[7],
+      fileInfo.checksum.bytes[8],
+      fileInfo.checksum.bytes[9],
+      fileInfo.checksum.bytes[10],
+      fileInfo.checksum.bytes[11],
+      fileInfo.checksum.bytes[12],
+      fileInfo.checksum.bytes[13],
+      fileInfo.checksum.bytes[14],
+      fileInfo.checksum.bytes[15],
+    },
   };
 }
 
@@ -92,6 +110,24 @@ const llb_build_value_file_info_t llbuild::capi::convertFileInfo(const basic::Fi
     llb_build_value_file_timestamp_t {
       fileInfo.modTime.seconds,
       fileInfo.modTime.nanoseconds,
+    },
+    llb_build_value_file_checksum_t {
+      fileInfo.checksum.bytes[0],
+      fileInfo.checksum.bytes[1],
+      fileInfo.checksum.bytes[2],
+      fileInfo.checksum.bytes[3],
+      fileInfo.checksum.bytes[4],
+      fileInfo.checksum.bytes[5],
+      fileInfo.checksum.bytes[6],
+      fileInfo.checksum.bytes[7],
+      fileInfo.checksum.bytes[8],
+      fileInfo.checksum.bytes[9],
+      fileInfo.checksum.bytes[10],
+      fileInfo.checksum.bytes[11],
+      fileInfo.checksum.bytes[12],
+      fileInfo.checksum.bytes[13],
+      fileInfo.checksum.bytes[14],
+      fileInfo.checksum.bytes[15],
     },
   };
 }

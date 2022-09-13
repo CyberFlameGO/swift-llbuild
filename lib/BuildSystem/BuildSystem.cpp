@@ -283,10 +283,14 @@ public:
     return internalSchemaVersion + (clientVersion << 16);
   }
 
-  void configureFileSystem(bool deviceAgnostic) {
-    if (deviceAgnostic) {
+  void configureFileSystem(int mode) {
+    if (mode == 1) {
       std::unique_ptr<basic::FileSystem> newFS(
           new DeviceAgnosticFileSystem(std::move(fileSystem)));
+      fileSystem.swap(newFS);
+    } else if (mode == 2) {
+      std::unique_ptr<basic::FileSystem> newFS(
+          new ChecksumOnlyFileSystem(std::move(fileSystem)));
       fileSystem.swap(newFS);
     }
   }
@@ -1738,7 +1742,7 @@ std::unique_ptr<Rule> BuildSystemEngineDelegate::lookupRule(const KeyType& keyDa
           /*IsValid=*/ nullptr
         ));
       }
-      
+
       return std::unique_ptr<Rule>(new BuildSystemRule(
         keyData,
         node->getSignature(),
@@ -3790,7 +3794,9 @@ BuildSystemFileDelegate::configureClient(const ConfigureContext& ctx,
   for (auto prop : properties) {
     if (prop.first == "file-system") {
       if (prop.second == "device-agnostic") {
-        system.configureFileSystem(true);
+        system.configureFileSystem(1);
+      } else if (prop.second == "checksum-only") {
+        system.configureFileSystem(2);
       } else if (prop.second != "default") {
         ctx.error("unsupported client file-system: '" + prop.second + "'");
         return false;

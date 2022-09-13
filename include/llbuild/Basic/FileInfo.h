@@ -60,6 +60,24 @@ struct FileTimestamp {
   }
 };
 
+struct FileChecksum {
+  uint8_t bytes[32] = {0};
+
+  bool operator==(const FileChecksum& rhs) const {
+    for(int i=0; i<32; i++) {
+      if(bytes[i] != rhs.bytes[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  bool operator!=(const FileChecksum& rhs) const {
+    return !(*this==rhs);
+  }
+
+  static FileChecksum getChecksumForPath(const std::string& path);
+};
+
 /// File information which is intended to be used as a proxy for when a file has
 /// changed.
 ///
@@ -75,6 +93,7 @@ struct FileInfo {
   uint64_t size;
   /// The modification time of the file.
   FileTimestamp modTime;
+  FileChecksum checksum = {0};
 
   /// Check if this is a FileInfo representing a missing file.
   bool isMissing() const {
@@ -86,13 +105,15 @@ struct FileInfo {
 
   /// Check if the FileInfo corresponds to a directory.
   bool isDirectory() const;
-  
+
   bool operator==(const FileInfo& rhs) const {
     return (device == rhs.device &&
             inode == rhs.inode &&
             size == rhs.size &&
-            modTime == rhs.modTime);
+            modTime == rhs.modTime &&
+            checksum == rhs.checksum);
   }
+
   bool operator!=(const FileInfo& rhs) const {
     return !(*this == rhs);
   }
@@ -121,6 +142,20 @@ struct BinaryCodingTraits<FileTimestamp> {
 };
 
 template<>
+struct BinaryCodingTraits<FileChecksum> {
+  static inline void encode(const FileChecksum& value, BinaryEncoder& coder) {
+    for(int i=0; i<32; i++) {
+      coder.write(value.bytes[i]);
+    }
+  }
+  static inline void decode(FileChecksum& value, BinaryDecoder& coder) {
+    for(int i=0; i<32; i++) {
+      coder.read(value.bytes[i]);
+    }
+  }
+};
+
+template<>
 struct BinaryCodingTraits<FileInfo> {
   static inline void encode(const FileInfo& value, BinaryEncoder& coder) {
     coder.write(value.device);
@@ -128,6 +163,7 @@ struct BinaryCodingTraits<FileInfo> {
     coder.write(value.mode);
     coder.write(value.size);
     coder.write(value.modTime);
+    coder.write(value.checksum);
   }
   static inline void decode(FileInfo& value, BinaryDecoder& coder) {
     coder.read(value.device);
@@ -135,6 +171,7 @@ struct BinaryCodingTraits<FileInfo> {
     coder.read(value.mode);
     coder.read(value.size);
     coder.read(value.modTime);
+    coder.read(value.checksum);
   }
 };
 

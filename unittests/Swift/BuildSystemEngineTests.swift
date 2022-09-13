@@ -339,7 +339,7 @@ commands:
 
             func execute(_ command: Command, _ commandInterface: BuildSystemCommandInterface, _ jobContext: JobContext) -> BuildValue {
                 executed = true
-                let fileInfo = BuildValueFileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValueFileTimestamp())
+                let fileInfo = BuildValueFileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValueFileTimestamp(), checksum: BuildValueFileChecksum())
                 return BuildValue.SuccessfulCommand(outputInfos: [fileInfo])
             }
 
@@ -348,7 +348,7 @@ commands:
                     return false
                 }
 
-                return value.outputInfos.count == 1 && value.outputInfos[0] == BuildValueFileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValueFileTimestamp())
+                return value.outputInfos.count == 1 && value.outputInfos[0] == BuildValueFileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValueFileTimestamp(), checksum: BuildValueFileChecksum())
             }
 
             func wasExecuted() -> Bool {
@@ -395,7 +395,7 @@ commands:
             return XCTFail("Unable to load command value from db")
         }
 
-        let fileInfo = BuildValueFileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValueFileTimestamp())
+        let fileInfo = BuildValueFileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValueFileTimestamp(), checksum: BuildValueFileChecksum())
         XCTAssertEqual(maincommandResult.value, BuildValue.SuccessfulCommand(outputInfos: [fileInfo]))
     }
 }

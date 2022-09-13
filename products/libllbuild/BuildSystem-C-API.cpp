@@ -101,6 +101,21 @@ public:
     return cAPIDelegate.fs_remove(cAPIDelegate.context, path.c_str());
   }
 
+  virtual basic::FileChecksum getFileChecksum(const std::string& path) override {
+    if (!cAPIDelegate.fs_get_file_checksum) {
+      return localFileSystem->getFileChecksum(path);
+    }
+
+    llb_fs_file_checksum_t file_checksum;
+    cAPIDelegate.fs_get_file_checksum(cAPIDelegate.context, path.c_str(), &file_checksum);
+
+    basic::FileChecksum result{};
+    for (int i=0; i<16; i++) {
+      result.bytes[i] = file_checksum.bytes[i];
+    }
+    return result;
+  }
+
   virtual basic::FileInfo getFileInfo(const std::string& path) override {
     if (!cAPIDelegate.fs_get_file_info) {
       return localFileSystem->getFileInfo(path);
@@ -141,6 +156,7 @@ public:
     result.size = file_info.size;
     result.modTime.seconds = file_info.mod_time.seconds;;
     result.modTime.nanoseconds = file_info.mod_time.nanoseconds;
+    result.checksum = {0};
     return result;
   }
 

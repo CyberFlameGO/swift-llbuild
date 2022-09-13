@@ -37,14 +37,14 @@ class BuildValueTests: XCTestCase {
   }
   
   func testExistingInput() {
-    let fileInfo = BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 6))
+    let fileInfo = BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 6), checksum: BuildValueFileChecksum())
     let buildValue = BuildValue.ExistingInput(fileInfo: fileInfo)
     XCTAssertEqual(buildValue.kind, .existingInput)
     XCTAssertFalse(buildValue.valueData.isEmpty)
     XCTAssertEqual(buildValue.fileInfo, fileInfo)
-    XCTAssertEqual(buildValue.description, "<BuildValue.ExistingInput fileInfo=<FileInfo device=1 inode=2 mode=3 size=4 modTime=<FileTimestamp seconds=5 nanoseconds=6>>>")
+    XCTAssertEqual(buildValue.description, "<BuildValue.ExistingInput fileInfo=<FileInfo device=1 inode=2 mode=3 size=4 modTime=<FileTimestamp seconds=5 nanoseconds=6> checksum=<FileChecksum bytes=(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)>>>")
     XCTAssertEqual(buildValue, BuildValue.ExistingInput(fileInfo: fileInfo))
-    XCTAssertNotEqual(buildValue, BuildValue.ExistingInput(fileInfo: BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 7))))
+    XCTAssertNotEqual(buildValue, BuildValue.ExistingInput(fileInfo: BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 7), checksum: BuildValueFileChecksum())))
   }
   
   func testMissingInput() {
@@ -57,11 +57,11 @@ class BuildValueTests: XCTestCase {
   }
   
   func testDirectoryContents() {
-    let fileInfo = BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 6))
+    let fileInfo = BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 6), checksum: BuildValueFileChecksum())
     let buildValue = BuildValue.DirectoryContents(directoryInfo: fileInfo, contents: ["Sources", "Tests", "Package.swift"])
     XCTAssertEqual(buildValue.fileInfo, fileInfo)
     XCTAssertEqual(buildValue.contents, ["Sources", "Tests", "Package.swift"])
-    XCTAssertEqual(buildValue.description, "<BuildValue.DirectoryContents fileInfo=<FileInfo device=1 inode=2 mode=3 size=4 modTime=<FileTimestamp seconds=5 nanoseconds=6>> contents=[Sources, Tests, Package.swift]>")
+    XCTAssertEqual(buildValue.description, "<BuildValue.DirectoryContents fileInfo=<FileInfo device=1 inode=2 mode=3 size=4 modTime=<FileTimestamp seconds=5 nanoseconds=6> checksum=<FileChecksum bytes=(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)>> contents=[Sources, Tests, Package.swift]>")
     XCTAssertEqual(buildValue, BuildValue.DirectoryContents(directoryInfo: fileInfo, contents: ["Sources", "Tests", "Package.swift"]))
     XCTAssertNotEqual(buildValue, BuildValue.DirectoryContents(directoryInfo: fileInfo, contents: ["Sources", "Tests"]))
   }
@@ -106,12 +106,12 @@ class BuildValueTests: XCTestCase {
   
   func testSuccessfulCommand() {
     let fileInfos = [1, 2, 3].map {
-      BuildValue.FileInfo(device: 1 * $0, inode: 2 * $0, mode: 3 * $0, size: 4 * $0, modTime: BuildValue.FileTimestamp(seconds: 5 * $0, nanoseconds: 6 * $0))
+      BuildValue.FileInfo(device: 1 * $0, inode: 2 * $0, mode: 3 * $0, size: 4 * $0, modTime: BuildValue.FileTimestamp(seconds: 5 * $0, nanoseconds: 6 * $0), checksum: BuildValueFileChecksum())
     }
     let buildValue = BuildValue.SuccessfulCommand(outputInfos: fileInfos)
     XCTAssertEqual(buildValue.kind, .successfulCommand)
     XCTAssertEqual(buildValue.outputInfos, fileInfos)
-    XCTAssertEqual(buildValue.description, "<BuildValue.SuccessfulCommand outputInfos=[<FileInfo device=1 inode=2 mode=3 size=4 modTime=<FileTimestamp seconds=5 nanoseconds=6>>, <FileInfo device=2 inode=4 mode=6 size=8 modTime=<FileTimestamp seconds=10 nanoseconds=12>>, <FileInfo device=3 inode=6 mode=9 size=12 modTime=<FileTimestamp seconds=15 nanoseconds=18>>]>")
+    XCTAssertEqual(buildValue.description, "<BuildValue.SuccessfulCommand outputInfos=[<FileInfo device=1 inode=2 mode=3 size=4 modTime=<FileTimestamp seconds=5 nanoseconds=6> checksum=<FileChecksum bytes=(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)>>, <FileInfo device=2 inode=4 mode=6 size=8 modTime=<FileTimestamp seconds=10 nanoseconds=12> checksum=<FileChecksum bytes=(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)>>, <FileInfo device=3 inode=6 mode=9 size=12 modTime=<FileTimestamp seconds=15 nanoseconds=18> checksum=<FileChecksum bytes=(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)>>]>")
     XCTAssertEqual(buildValue, BuildValue.SuccessfulCommand(outputInfos: fileInfos))
     XCTAssertNotEqual(buildValue, BuildValue.SuccessfulCommand(outputInfos: Array(fileInfos.dropFirst())))
   }
@@ -181,7 +181,14 @@ class BuildValueTests: XCTestCase {
   
   func testSuccessfulCommandWithOutputSignature() {
     let fileInfos = [1, 2, 3].map {
-      BuildValue.FileInfo(device: 1 * $0, inode: 2 * $0, mode: 3 * $0, size: 4 * $0, modTime: BuildValue.FileTimestamp(seconds: 5 * $0, nanoseconds: 6 * $0))
+      BuildValue.FileInfo(
+        device: 1 * $0,
+        inode: 2 * $0,
+        mode: 3 * $0,
+        size: 4 * $0,
+        modTime: BuildValue.FileTimestamp(seconds: 5 * $0, nanoseconds: 6 * $0),
+        checksum: BuildValueFileChecksum()
+      )
     }
     let buildValue = BuildValue.SuccessfulCommandWithOutputSignature(outputInfos: fileInfos, signature: 42)
     XCTAssertEqual(buildValue.kind, .successfulCommandWithOutputSignature)
@@ -206,7 +213,7 @@ class BuildValueTests: XCTestCase {
       XCTAssertEqual(instance, typedConstructed)
     }
     
-    let fileInfo = BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 6))
+    let fileInfo = BuildValue.FileInfo(device: 1, inode: 2, mode: 3, size: 4, modTime: BuildValue.FileTimestamp(seconds: 5, nanoseconds: 6), checksum: BuildValueFileChecksum())
     let signature: BuildValue.CommandSignature = 42
     let stringList = ["foo", "bar"]
     

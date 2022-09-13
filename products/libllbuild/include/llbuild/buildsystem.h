@@ -75,6 +75,10 @@ typedef struct llb_fs_file_info_t_ {
   llb_fs_timestamp_t mod_time;
 } llb_fs_file_info_t;
 
+typedef struct llb_fs_file_checksum_t_ {
+  uint8_t bytes[16];
+} llb_fs_file_checksum_t;
+
 /// @}
 
 /// @name Diagnostics
@@ -302,6 +306,10 @@ typedef struct llb_buildsystem_delegate_t_ {
   ///
   /// \\returns True on success.
   bool (*fs_remove)(void* context, const char* path);
+
+  /// Get the file checksum for the given path.
+  void (*fs_get_file_checksum)(void* context, const char* path,
+                               llb_fs_file_checksum_t* data_out);
 
   /// Get the file information for the given path.
   void (*fs_get_file_info)(void* context, const char* path,
@@ -536,7 +544,7 @@ typedef struct llb_buildsystem_delegate_t_ {
                                   uint64_t rule_count,
                                   llb_build_key_t* candidate_rule,
                                   llb_cycle_action_t action);
-  
+
   /// @}
 } llb_buildsystem_delegate_t;
 

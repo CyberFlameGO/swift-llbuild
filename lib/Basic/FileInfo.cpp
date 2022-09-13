@@ -16,6 +16,15 @@
 
 #include <cassert>
 #include <cstring>
+#include <fstream>
+#include <cstdio>
+#include <cerrno>
+
+#ifdef __APPLE__
+#include <CommonCrypto/CommonDigest.h>
+#else
+#include "llvm/Support/MD5.h"
+#endif
 
 using namespace llbuild;
 using namespace llbuild::basic;
@@ -59,6 +68,60 @@ FileInfo FileInfo::getInfoForPath(const std::string& path, bool asLink) {
   if (result.isMissing()) {
     result.modTime.nanoseconds = 1;
     assert(!result.isMissing());
+  }
+
+  return result;
+}
+
+FileChecksum FileChecksum::getChecksumForPath(const std::string& path) {
+  FileChecksum result;
+
+  FileInfo fileInfo = FileInfo::getInfoForPath(path);
+  if (fileInfo.isMissing()) {
+    for(int i=0; i<32; i++) {
+      result.bytes[i] = 0;
+    }
+  } else if (fileInfo.isDirectory()) {
+    result.bytes[0] = 1;
+  } else {
+    FILE *file = NULL;
+    file = std::fopen(path.c_str(), "rb");
+    char buffer[4*4096];
+    size_t bytesRead = 0;
+
+#ifdef __APPLE__
+    CC_SHA256_CTX ctx = {};
+    unsigned char temp_digest[CC_SHA256_DIGEST_LENGTH] = { 0 };
+    CC_SHA256_Init( &ctx );
+
+    if (file != NULL) {
+      while ((bytesRead = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+        CC_SHA256_Update(&ctx, buffer, bytesRead );
+      }
+      fclose(file);
+    } else {
+      abort();
+    }
+
+    CC_SHA256_Final( temp_digest, &ctx );
+    std::copy(temp_digest, temp_digest+CC_SHA256_DIGEST_LENGTH, result.bytes);
+#else
+    llvm::MD5 hasher;
+
+    if (file != NULL) {
+      while ((bytesRead = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+        const char* buffer2 = buffer;
+        hasher.update(StringRef(buffer2, bytesRead));
+      }
+      fclose(file);
+    } else {
+      abort();
+    }
+  }
+  llvm::MD5::MD5Result output;
+  hasher.final(output);
+  std::copy(output.Bytes.begin(), output.Bytes.end(), result.bytes);
+#endif
   }
 
   return result;

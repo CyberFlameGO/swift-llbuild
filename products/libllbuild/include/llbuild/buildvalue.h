@@ -79,8 +79,12 @@ typedef enum LLBUILD_ENUM_ATTRIBUTES {
 
   /// A value produced by a successful command with an output signature.
   llb_build_value_kind_successful_command_with_output_signature LLBUILD_SWIFT_NAME(successfulCommandWithOutputSignature) = 17,
-  
+
 } llb_build_value_kind_t LLBUILD_SWIFT_NAME(BuildValueKind);
+
+typedef struct llb_build_value_file_checksum_t_ {
+  uint8_t bytes[16];
+} llb_build_value_file_checksum_t LLBUILD_SWIFT_NAME(BuildValueFileChecksum);
 
 typedef struct llb_build_value_file_timestamp_t_ {
   uint64_t seconds;
@@ -98,6 +102,8 @@ typedef struct llb_build_value_file_info_t_ {
   uint64_t size;
   /// The modification time of the file.
   llb_build_value_file_timestamp_t modTime;
+  /// Checksum of the file.
+  llb_build_value_file_checksum_t checksum;
 } llb_build_value_file_info_t LLBUILD_SWIFT_NAME(BuildValueFileInfo);
 
 typedef uint64_t llb_build_value_command_signature_t LLBUILD_SWIFT_NAME(BuildValueCommandSignature);

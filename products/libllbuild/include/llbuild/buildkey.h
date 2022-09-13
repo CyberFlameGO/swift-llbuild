@@ -54,7 +54,7 @@ typedef enum LLBUILD_ENUM_ATTRIBUTES {
   /// A key used to identify filtered directory contents.
   llb_build_key_kind_filtered_directory_contents LLBUILD_SWIFT_NAME(filteredDirectoryContents) = 8,
 
-  /// A key used to identify a node.
+  /// A key used to identify stat info.
   llb_build_key_kind_stat = 10,
 } llb_build_key_kind_t LLBUILD_SWIFT_NAME(BuildKeyKind);
 

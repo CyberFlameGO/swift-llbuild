@@ -56,13 +56,13 @@ extension BuildValueKind: CustomStringConvertible {
 
 extension BuildValueFileInfo: Equatable {
     public static func == (lhs: BuildValueFileInfo, rhs: BuildValueFileInfo) -> Bool {
-        return lhs.device == rhs.device && lhs.inode == rhs.inode && lhs.mode == rhs.mode && lhs.size == rhs.size && lhs.modTime == rhs.modTime
+        return lhs.device == rhs.device && lhs.inode == rhs.inode && lhs.mode == rhs.mode && lhs.size == rhs.size && lhs.modTime == rhs.modTime && lhs.checksum == rhs.checksum
     }
 }
 
 extension BuildValueFileInfo: CustomStringConvertible {
     public var description: String {
-        return "<FileInfo device=\(device) inode=\(inode) mode=\(mode) size=\(size) modTime=\(modTime)>"
+        return "<FileInfo device=\(device) inode=\(inode) mode=\(mode) size=\(size) modTime=\(modTime) checksum=\(checksum)>"
     }
 }
 
@@ -82,6 +82,33 @@ extension BuildValueFileTimestamp: Comparable {
 extension BuildValueFileTimestamp: CustomStringConvertible {
     public var description: String {
         return "<FileTimestamp seconds=\(seconds) nanoseconds=\(nanoseconds)>"
+    }
+}
+
+extension BuildValueFileChecksum: CustomStringConvertible {
+    public var description: String {
+        return "<FileChecksum bytes=\(bytes)>"
+    }
+}
+
+extension BuildValueFileChecksum: Equatable {
+    public static func == (lhs: BuildValueFileChecksum, rhs: BuildValueFileChecksum) -> Bool {
+        return lhs.bytes.0 == rhs.bytes.0 &&
+        lhs.bytes.1 == rhs.bytes.1 &&
+        lhs.bytes.2 == rhs.bytes.2 &&
+        lhs.bytes.3 == rhs.bytes.3 &&
+        lhs.bytes.4 == rhs.bytes.4 &&
+        lhs.bytes.5 == rhs.bytes.5 &&
+        lhs.bytes.6 == rhs.bytes.6 &&
+        lhs.bytes.7 == rhs.bytes.7 &&
+        lhs.bytes.8 == rhs.bytes.8 &&
+        lhs.bytes.9 == rhs.bytes.9 &&
+        lhs.bytes.10 == rhs.bytes.10 &&
+        lhs.bytes.11 == rhs.bytes.11 &&
+        lhs.bytes.12 == rhs.bytes.12 &&
+        lhs.bytes.13 == rhs.bytes.13 &&
+        lhs.bytes.14 == rhs.bytes.14 &&
+        lhs.bytes.15 == rhs.bytes.15
     }
 }
 
