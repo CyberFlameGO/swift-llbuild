@@ -398,6 +398,9 @@ void ExternalCommand::execute(BuildSystem& system,
       //
       // FIXME: Need to use the filesystem interfaces.
       auto parent = llvm::sys::path::parent_path(node->getName());
+      if (node->getName().endswith("/")) {
+        parent = llvm::sys::path::parent_path(parent);
+      }
       if (!parent.empty()) {
         (void) system.getFileSystem().createDirectories(parent);
       }

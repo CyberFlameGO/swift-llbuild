@@ -221,6 +221,158 @@ TEST(BuildSystemTaskTests, directoryContents) {
   }
 }
 
+/// Check incremental build for directory as input/output dependency
+TEST(BuildSystemTaskTests, producedDirectoryTreeNode) {
+  TmpDir tempDir(__func__);
+  auto localFS = createLocalFileSystem();
+
+  SmallString<256> builddb{ tempDir.str() };
+  sys::path::append(builddb, "build.db");
+  for (auto& c : builddb) {
+    if (c == '\\')
+      c = '/';
+  }
+
+  // Create input files
+  SmallString<256> fileA{ tempDir.str() };
+  sys::path::append(fileA, "fileA");
+  SmallString<256> fileB{ tempDir.str() };
+  sys::path::append(fileB, "fileB");
+  {
+    std::error_code ec;
+    llvm::raw_fd_ostream os(fileA, ec, llvm::sys::fs::F_Text);
+    assert(!ec);
+    os << "fileA\n";
+  }
+  {
+    std::error_code ec;
+    llvm::raw_fd_ostream os(fileB, ec, llvm::sys::fs::F_Text);
+    assert(!ec);
+    os << "fileB\n";
+  }
+  for (auto& c : fileA) {
+    if (c == '\\')
+      c = '/';
+  }
+  for (auto& c : fileB) {
+    if (c == '\\')
+      c = '/';
+  }
+
+  SmallString<256> outDir{ tempDir.str() };
+  sys::path::append(outDir, "out/");
+  for (auto& c : outDir) {
+    if (c == '\\')
+      c = '/';
+  }
+
+  SmallString<256> resultTxt{ tempDir.str() };
+  sys::path::append(resultTxt, "result.txt");
+  for (auto& c : resultTxt) {
+    if (c == '\\')
+      c = '/';
+  }
+
+  // Build such that the output file should be produced
+  {
+    SmallString<256> manifest{ tempDir.str() };
+    for (auto& c : manifest) {
+      if (c == '\\')
+        c = '/';
+    }
+    sys::path::append(manifest, "manifest.llbuild");
+    {
+      std::error_code ec;
+      llvm::raw_fd_ostream os(manifest, ec, llvm::sys::fs::F_Text);
+      assert(!ec);
+
+      os <<
+      "client:\n"
+      "  name: mock\n"
+      "\n"
+      "targets:\n"
+      "  \"\": [\"<all>\"]\n"
+      "\n"
+      "nodes:\n"
+      "  \"" << outDir << "\": {}\n"
+      "  \"" << fileA << "\": {}\n"
+      "  \"" << fileB << "\": {}\n"
+      "  \"" << resultTxt << "\": {}\n"
+      "\n"
+      "commands:\n"
+      "  \"produce-result\":\n"
+      "    tool: shell\n"
+      "    inputs: [\"" << outDir << "\"]\n"
+      "    outputs: [\"" << resultTxt << "\"]\n"
+      "    description: \"produce-result\"\n"
+      "    args:\n"
+      "      cat " << outDir << "/* > " << resultTxt << "\n"
+      "  \"capitalize-files\":\n"
+      "    tool: shell\n"
+      "    inputs: [\"" << fileA << "\", \"" << fileB << "\"]\n"
+      "    outputs: [\"" << outDir << "\"]\n"
+      "    description: \"capitalize-files\"\n"
+      "    args:\n"
+      "      mkdir -p " << outDir << "\n"
+      "      cat " << fileA << " | tr a-z A-Z > " << outDir << "/a.txt\n"
+      "      cat " << fileB << " | tr a-z A-Z > " << outDir << "/b.txt\n"
+      "  \"<all>\":\n"
+      "    tool: phony\n"
+      "    inputs: [\"" << resultTxt << "\"]\n"
+      "    outputs: [\"<all>\"]\n";
+    }
+
+    // Create the build system.
+    auto keyToBuild = BuildKey::makeTarget("");
+    MockBuildSystemDelegate delegate;
+    BuildSystem system(delegate, createLocalFileSystem());
+    system.attachDB(builddb.c_str(), nullptr);
+    bool loadingResult = system.loadDescription(manifest);
+    ASSERT_TRUE(loadingResult);
+
+    // Check that result.txt does not exist
+    auto fileInfoBeforeBuild = localFS->getFileInfo(resultTxt.str());
+    ASSERT_TRUE(fileInfoBeforeBuild.isMissing());
+
+    // Build a specific key.
+    auto result = system.build(keyToBuild);
+    ASSERT_TRUE(result.hasValue());
+
+    // Ensure that we have not had any missing inputs
+    for (auto message : delegate.getMessages()) {
+      ASSERT_EQ(message.find("missing input"), std::string::npos);
+    }
+
+    // Check that result.txt exists and has the correct output
+    auto fileInfoAfterBuild = localFS->getFileInfo(resultTxt.str());
+    ASSERT_TRUE(!fileInfoAfterBuild.isMissing());
+
+    // Check result of first build
+    {
+      auto contents = localFS->getFileContents(resultTxt.str())->getBuffer().str();
+      ASSERT_EQ(contents, "FILEA\nFILEB\n");
+    }
+
+    // Modify fileA
+    {
+      std::error_code ec;
+      llvm::raw_fd_ostream os(fileA, ec, llvm::sys::fs::F_Text);
+      assert(!ec);
+      os << "updated fileA\n";
+    }
+
+    // Build for the second time
+    result = system.build(keyToBuild);
+
+    // Check result of second build
+    {
+      // Check that result.txt contains the updated output
+      auto contents = localFS->getFileContents(resultTxt.str())->getBuffer().str();
+      ASSERT_EQ(contents, "UPDATED FILEA\nFILEB\n");
+    }
+  }
+}
+
 /// Check that we evaluate a produced node dependency properly
 TEST(BuildSystemTaskTests, producedNode) {
   TmpDir tempDir(__func__);

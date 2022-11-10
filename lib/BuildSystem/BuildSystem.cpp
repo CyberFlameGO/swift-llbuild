@@ -768,6 +768,110 @@ public:
   }
 };
 
+class ProducedDirectoryNodeTask : public Task {
+  Node& node;
+
+  BuildValue nodeResult;
+  core::ValueType directorySignature;
+
+  Command* producingCommand = nullptr;
+
+  // Whether this is a node we are unable to produce.
+  bool isInvalid = false;
+
+  virtual void start(TaskInterface ti) override {
+    // Request the producer command.
+    auto getCommand = [&]()->Command* {
+      if (node.getProducers().size() == 1) {
+        return node.getProducers()[0];
+      }
+      // Give the delegate a chance to resolve to a single command.
+      return getBuildSystem(ti).getDelegate().
+          chooseCommandFromMultipleProducers(&node, node.getProducers());
+    };
+
+    if (Command* foundCommand = getCommand()) {
+      producingCommand = foundCommand;
+      ti.request(BuildKey::makeCommand(producingCommand->getName()).toData(),
+                 /*InputID=*/0);
+      return;
+    }
+
+    // Notify that we could not resolve to a single producer.
+    getBuildSystem(ti).getDelegate().
+        cannotBuildNodeDueToMultipleProducers(&node, node.getProducers());
+    isInvalid = true;
+  }
+
+  virtual void providePriorValue(TaskInterface,
+                                 const ValueType& value) override {
+  }
+
+  virtual void provideValue(TaskInterface ti, uintptr_t inputID,
+                            const ValueType& valueData) override {
+    if (inputID == 0) {
+      auto value = BuildValue::fromData(valueData);
+
+      // Extract the node result from the command.
+      assert(producingCommand);
+
+      // NOTE: nodeResult only contains stat info of the directory, not its signature.
+      nodeResult = producingCommand->getResultForOutput(&node, value);
+
+      if (nodeResult.isExistingInput()) {
+        // The external command must have produced the directory node.
+        // Request for its signature and store it
+
+        StringRef path =  node.getName();
+        if (path.endswith("/") && path != "/") {
+          path = path.substr(0, path.size() - 1);
+        }
+        ti.request(BuildKey::makeDirectoryTreeSignature(path,basic::StringList()).toData(), /*inputID=*/1);
+      } else {
+        // ExternalCommand failed..
+        isInvalid = true;
+      }
+    } else if (inputID == 1) {
+      directorySignature = valueData;
+    }
+  }
+
+  virtual void inputsAvailable(TaskInterface ti) override {
+    if (isInvalid) {
+      getBuildSystem(ti).getDelegate().hadCommandFailure();
+      ti.complete(BuildValue::makeFailedInput().toData());
+      return;
+    }
+
+    assert(!nodeResult.isInvalid());
+
+    // Complete the task immediately.
+    ti.complete(ValueType(directorySignature));
+  }
+
+public:
+  ProducedDirectoryNodeTask(Node& node)
+      : node(node), nodeResult(BuildValue::makeInvalid()) {}
+
+  static bool isResultValid(BuildEngine& engine, Node& node,
+                            const BuildValue& value) {
+    // If the result was failure, we always need to rebuild (it may produce an
+    // error).
+    if (value.isFailedInput())
+      return false;
+
+    // If the result was previously a missing input, it may have been because
+    // we did not previously know how to produce this node. We do now, so
+    // attempt to build it now.
+    if (value.isMissingInput())
+      return false;
+
+    // The produced node result itself doesn't need any synchronization.
+    // If the directory signature is changed, it will be reflected in value of this node.
+    return true;
+  }
+};
+
 
 /// This task is responsible for computing the lists of files in directories.
 class DirectoryContentsTask : public Task {
@@ -1754,6 +1858,21 @@ std::unique_ptr<Rule> BuildSystemEngineDelegate::lookupRule(const KeyType& keyDa
     }
 
     // Otherwise, create a task for a produced node.
+    if (node->isDirectory()) {
+      return std::unique_ptr<Rule>(new BuildSystemRule(
+        keyData,
+        node->getSignature(),
+        /*Action=*/ [node](BuildEngine& engine) -> Task* {
+          return new ProducedDirectoryNodeTask(*node);
+        },
+        /*IsValid=*/ [node](BuildEngine& engine, const Rule& rule,
+                            const ValueType& value) -> bool {
+          return ProducedDirectoryNodeTask::isResultValid(
+              engine, *node, BuildValue::fromData(value));
+        }
+      ));
+    }
+
     return std::unique_ptr<Rule>(new BuildSystemRule(
       keyData,
       node->getSignature(),

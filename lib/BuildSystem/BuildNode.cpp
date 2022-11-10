@@ -133,7 +133,15 @@ bool BuildNode::configureAttribute(
 
 FileInfo BuildNode::getFileInfo(basic::FileSystem& fileSystem) const {
   assert(!isVirtual());
-  return fileSystem.getFileInfo(getName());
+
+  // Drop the trailing slash
+  // otherwise non-directory paths that end with "/" will be reported as missing
+  StringRef path = getName();
+  if (path.endswith("/") && path != "/") {
+    path = path.substr(0, path.size() - 1);
+  }
+
+  return fileSystem.getFileInfo(path);
 }
 
 FileInfo BuildNode::getLinkInfo(basic::FileSystem& fileSystem) const {
